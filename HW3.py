@@ -240,3 +240,44 @@ plot_boxplot(
     label1="Control Group Engagement Gain",
     label2="Treatment Group Engagement Gain"
 )
+
+
+################################################## PART 6 #########################################################
+
+# Load the t4 dataset
+t4 = pd.read_csv("Data/t4_user_attributes.csv")
+
+# Merge user attributes with engagement data
+engagement_with_attributes = engagement_data_filtered.merge(t4, on="uid", how="inner")
+
+# Compute summary statistics for engagement gain by gender
+gender_stats = engagement_with_attributes.groupby("gender")["engagement_gain"].agg(["mean", "median", "std"])
+print("\nEngagement statistics by gender:\n", gender_stats)
+
+# Compute summary statistics for engagement gain by user type
+user_type_stats = engagement_with_attributes.groupby("user_type")["engagement_gain"].agg(["mean", "median", "std"])
+print("\nEngagement statistics by user type:\n", user_type_stats)
+
+# Perform Mann-Whitney U-Test for engagement gain between male and female users
+male_gain = engagement_with_attributes[engagement_with_attributes["gender"] == "male"]["engagement_gain"]
+female_gain = engagement_with_attributes[engagement_with_attributes["gender"] == "female"]["engagement_gain"]
+u_test_gender = stats.mannwhitneyu(male_gain, female_gain)
+print("\nMann-Whitney U-Test Result (Male vs. Female Engagement Gain):", u_test_gender.pvalue)
+
+# Create a boxplot for engagement gain by gender
+plt.figure(figsize=(10, 6))
+sns.boxplot(x=engagement_with_attributes["gender"], y=engagement_with_attributes["engagement_gain"])
+plt.xlabel("Gender")
+plt.ylabel("Engagement Gain")
+plt.title("Engagement Gain by Gender")
+plt.xticks(rotation=45)
+plt.show()
+
+# Plot boxplot to compare engagement gain by user type
+plt.figure(figsize=(10, 5))
+sns.boxplot(data=engagement_with_attributes, x="user_type", y="engagement_gain")
+plt.title("Engagement Gain by User Type")
+plt.xlabel("User Type")
+plt.ylabel("Engagement Gain")
+plt.xticks(rotation=45)
+plt.show()
