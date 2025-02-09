@@ -138,32 +138,26 @@ print(u_test)
 # Load the t3 dataset
 t3 = pd.read_csv("Data/t3_user_active_min_pre.csv")
 
-# Merge t3 and t2 datasets on 'uid' (ignoring 'dt' from t2_variant since it's always 2019-02-06)
+# Merge t3(pre-expeiment data) and t2 datasets
 pre_merged = t3.merge(t2[['uid', 'variant_number']], on='uid', how='inner')
+
 # Show first five rows of the merged dataset
-print("\nMerged Dataset:\n")
+print("\Pre-Experiment Data:\n")
 print(pre_merged.head())
 
 
-# Remove outliers
+# Remove outliers from pre-experiment data
 pre_merged_clean = remove_outliers(pre_merged)
 
 # Display how many outliers were removed
 print(f"\nOutliers removed: {len(pre_merged) - len(pre_merged_clean)}")
 print("Max Active Minutes After Outlier Removal:", merged_clean["active_mins"].max())
 
+# Get total active minutes before the experiment (per user)
+pre_experiment_agg = pre_merged_clean.groupby("uid").agg(pre_experiment_mins=("active_mins", "sum")).reset_index()
 
-# Separate Control and Treatment groups
-pre_control_clean = pre_merged_clean[pre_merged_clean["variant_number"] == 0]["active_mins"]
-pre_treatment_clean = pre_merged_clean[pre_merged_clean["variant_number"] == 1]["active_mins"]
-
-# Aggregate pre-experiment engagement per user
-pre_experiment_agg = pre_merged_clean.groupby("uid")["active_mins"].sum().reset_index()
-pre_experiment_agg.rename(columns={"active_mins": "pre_experiment_mins"}, inplace=True)
-
-# Aggregate post-experiment engagement per user
-post_experiment_agg = merged_clean.groupby("uid")["active_mins"].sum().reset_index()
-post_experiment_agg.rename(columns={"active_mins": "post_experiment_mins"}, inplace=True)
+# Get total active minutes after the experiment (per user)
+post_experiment_agg = merged_clean.groupby("uid").agg(post_experiment_mins=("active_mins", "sum")).reset_index()
 
 # Find common users in both pre- and post-experiment datasets
 common_users = set(pre_experiment_agg["uid"]).intersection(set(post_experiment_agg["uid"]))
@@ -179,13 +173,9 @@ print("\nTotal Users in Pre-Experiment:", len(pre_experiment_agg))
 print("Total Users in Post-Experiment:", len(post_experiment_agg))
 print("Users in Both Periods:", len(engagement_data_filtered))
 
-
 # Compare pre-experiment engagement between Control and Treatment groups
 pre_experiment_stats = pre_experiment_agg.merge(t2[["uid", "variant_number"]], on="uid", how="inner")
-
-# Compute Summary Statistics for Pre-Experiment Data
 pre_summary_stats = pre_experiment_stats.groupby("variant_number")["pre_experiment_mins"].describe()
-
 print("\nSummary Statistics for Pre-Experiment Engagement:\n", pre_summary_stats)
 
 # Perform Mann-Whitney U-Test on pre-experiment engagement
@@ -193,7 +183,6 @@ pre_control = pre_experiment_stats[pre_experiment_stats["variant_number"] == 0][
 pre_treatment = pre_experiment_stats[pre_experiment_stats["variant_number"] == 1]["pre_experiment_mins"]
 
 u_test_pre = stats.mannwhitneyu(pre_control, pre_treatment)
-
 print("\nMann-Whitney U-Test Result (Pre-Experiment Engagement):", u_test_pre)
 
 # Plot Histogram of Pre-Experiment Engagement
@@ -203,16 +192,12 @@ plot_histogram(pre_control, pre_treatment, label1="Pre-Experiment Control", labe
 plot_boxplot(pre_control, pre_treatment, label1="Pre-Experiment Control", label2="Pre-Experiment Treatment")
 
 
-# Compute Engagement Gain
+# Calculate how much engagement changed for each user
 engagement_data_filtered["engagement_gain"] = engagement_data_filtered["post_experiment_mins"] - engagement_data_filtered["pre_experiment_mins"]
-
-# Display engagement data with gain
 print("\nEngagement Gain Data:\n", engagement_data_filtered.head())
 
 # Compute summary statistics for engagement gain
 summary_stats_gain = engagement_data_filtered.groupby("variant_number")["engagement_gain"].describe()
-
-# Print results
 print("\nSummary Statistics for Engagement Gain:\n", summary_stats_gain)
 
 # Separate engagement gain for Control and Treatment groups
@@ -221,8 +206,6 @@ treatment_gain = engagement_data_filtered[engagement_data_filtered["variant_numb
 
 # Perform Mann-Whitney U-Test
 u_test_gain = stats.mannwhitneyu(control_gain, treatment_gain)
-
-# Print results
 print("\nMann-Whitney U-Test Result (Engagement Gain):", u_test_gain)
 
 # Plot Histogram of Engagement Gain for Control and Treatment Groups
@@ -269,7 +252,7 @@ plt.figure(figsize=(10, 6))
 sns.boxplot(x=engagement_with_attributes["gender"], y=engagement_with_attributes["engagement_gain"])
 plt.xlabel("Gender")
 plt.ylabel("Engagement Gain")
-plt.title("Engagement Gain by Gender")
+plt.title("Comparison of Engagement Gains by Gender")
 plt.xticks(rotation=45)
 plt.show()
 
