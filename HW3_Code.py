@@ -18,27 +18,30 @@ t2 = pd.read_csv("Data/t2_user_variant.csv")
 # Merge datasets on 'uid' (ignoring 'dt' from t2_variant since it's always 2019-02-06)
 merged_data = t1.merge(t2[['uid', 'variant_number']], on='uid', how='inner')
 
-# Show first five rows of the merged dataset
 print("\nMerged Dataset:\n")
 print(merged_data.head())
 
 
 ################################################## PART 3 #########################################################
 
+# Plot Histogram
 def plot_histogram(control, treatment, label1="Control Group", label2="Treatment Group"):
     plt.figure(figsize=(12, 5))
     plt.subplot(1, 2, 1)
-    sns.histplot(control, bins=30, kde=True, color="blue", alpha=0.6)
+    sns.histplot(control, bins=30, kde=False, color="blue", alpha=0.6)
     plt.title(f"Histogram of Active Minutes ({label1})")
     plt.xlabel("Active Minutes")
+    plt.xlim(0, 6000)
     
     plt.subplot(1, 2, 2)
-    sns.histplot(treatment, bins=30, kde=True, color="blue", alpha=0.6)
+    sns.histplot(treatment, bins=30, kde=False, color="blue", alpha=0.6)
     plt.title(f"Histogram of Active Minutes ({label2})")
     plt.xlabel("Active Minutes")
+    plt.xlim(0, 6000)
     
     plt.show()
 
+# Plot QQPlot
 def plot_qqplot(control, treatment, label1="Control Group", label2="Treatment Group"):
     fig, ax = plt.subplots(1, 2, figsize=(12, 5))
 
@@ -80,6 +83,7 @@ print(u_test)
 
 ################################################## PART 4 #########################################################
 
+# Plot Histogram
 def plot_boxplot(control, treatment, label1="Control Group", label2="Treatment Group"):
     plt.figure(figsize=(12, 5))
     
@@ -93,10 +97,9 @@ def plot_boxplot(control, treatment, label1="Control Group", label2="Treatment G
     
     plt.show()
 
-
+# Remove outliers from the data
 def remove_outliers(data, threshold=1440):
     return data[data["active_mins"] <= threshold]
-
 
 # Plot Boxplot of Control and Treatment groups
 plot_boxplot(control_group, treatment_group)
@@ -107,7 +110,6 @@ merged_clean = remove_outliers(merged_data)
 # Display how many outliers were removed
 print(f"\nOutliers removed: {len(merged_data) - len(merged_clean)}")
 print("Max Active Minutes After Outlier Removal:", merged_clean["active_mins"].max())
-
 
 # Separate Control and Treatment groups
 control_clean = merged_clean[merged_clean["variant_number"] == 0]["active_mins"]
@@ -141,34 +143,24 @@ t3 = pd.read_csv("Data/t3_user_active_min_pre.csv")
 # Merge t3(pre-expeiment data) and t2 datasets
 pre_merged = t3.merge(t2[['uid', 'variant_number']], on='uid', how='inner')
 
-# Show first five rows of the merged dataset
 print("\Pre-Experiment Data:\n")
 print(pre_merged.head())
-
 
 # Remove outliers from pre-experiment data
 pre_merged_clean = remove_outliers(pre_merged)
 
-# Display how many outliers were removed
 print(f"\nOutliers removed: {len(pre_merged) - len(pre_merged_clean)}")
 print("Max Active Minutes After Outlier Removal:", merged_clean["active_mins"].max())
 
-# Get total active minutes before the experiment (per user)
+# Get total active minutes before and after the experiment (per user)
 pre_experiment_agg = pre_merged_clean.groupby("uid").agg(pre_experiment_mins=("active_mins", "sum")).reset_index()
-
-# Get total active minutes after the experiment (per user)
 post_experiment_agg = merged_clean.groupby("uid").agg(post_experiment_mins=("active_mins", "sum")).reset_index()
 
-# Find common users in both pre- and post-experiment datasets
+# Find and keep only common users in both pre and post experiment datasets
 common_users = set(pre_experiment_agg["uid"]).intersection(set(post_experiment_agg["uid"]))
-
-# Keep only users that exist in both periods
 engagement_data_filtered = pre_experiment_agg.merge(post_experiment_agg, on="uid", how="inner")
+engagement_data_filtered = engagement_data_filtered.merge(t2[["uid", "variant_number"]], on="uid", how="inner") # Merged with user variant information
 
-# Merge with user variant information
-engagement_data_filtered = engagement_data_filtered.merge(t2[["uid", "variant_number"]], on="uid", how="inner")
-
-# Display user counts
 print("\nTotal Users in Pre-Experiment:", len(pre_experiment_agg))
 print("Total Users in Post-Experiment:", len(post_experiment_agg))
 print("Users in Both Periods:", len(engagement_data_filtered))
@@ -185,10 +177,8 @@ pre_treatment = pre_experiment_stats[pre_experiment_stats["variant_number"] == 1
 u_test_pre = stats.mannwhitneyu(pre_control, pre_treatment)
 print("\nMann-Whitney U-Test Result (Pre-Experiment Engagement):", u_test_pre)
 
-# Plot Histogram of Pre-Experiment Engagement
+# Plot Histogram and Boxplot of Pre-Experiment Engagement
 plot_histogram(pre_control, pre_treatment, label1="Pre-Experiment Control", label2="Pre-Experiment Treatment")
-
-# Plot Boxplot of Pre-Experiment Engagement
 plot_boxplot(pre_control, pre_treatment, label1="Pre-Experiment Control", label2="Pre-Experiment Treatment")
 
 
@@ -208,7 +198,7 @@ treatment_gain = engagement_data_filtered[engagement_data_filtered["variant_numb
 u_test_gain = stats.mannwhitneyu(control_gain, treatment_gain)
 print("\nMann-Whitney U-Test Result (Engagement Gain):", u_test_gain)
 
-# Plot Histogram of Engagement Gain for Control and Treatment Groups
+# Plot Histogram and Boxplot of Engagement Gain for Control and Treatment Groups
 plot_histogram(
     engagement_data_filtered[engagement_data_filtered["variant_number"] == 0]["engagement_gain"],
     engagement_data_filtered[engagement_data_filtered["variant_number"] == 1]["engagement_gain"],
@@ -216,7 +206,6 @@ plot_histogram(
     label2="Treatment Group Engagement Gain"
 )
 
-# Plot Boxplot of Engagement Gain
 plot_boxplot(
     engagement_data_filtered[engagement_data_filtered["variant_number"] == 0]["engagement_gain"],
     engagement_data_filtered[engagement_data_filtered["variant_number"] == 1]["engagement_gain"],
@@ -233,11 +222,9 @@ t4 = pd.read_csv("Data/t4_user_attributes.csv")
 # Merge user attributes with engagement data
 engagement_with_attributes = engagement_data_filtered.merge(t4, on="uid", how="inner")
 
-# Compute summary statistics for engagement gain by gender
+# Compute summary statistics for engagement gain by gender and user type
 gender_stats = engagement_with_attributes.groupby("gender")["engagement_gain"].agg(["mean", "median", "std"])
 print("\nEngagement statistics by gender:\n", gender_stats)
-
-# Compute summary statistics for engagement gain by user type
 user_type_stats = engagement_with_attributes.groupby("user_type")["engagement_gain"].agg(["mean", "median", "std"])
 print("\nEngagement statistics by user type:\n", user_type_stats)
 
@@ -247,20 +234,21 @@ female_gain = engagement_with_attributes[engagement_with_attributes["gender"] ==
 u_test_gender = stats.mannwhitneyu(male_gain, female_gain)
 print("\nMann-Whitney U-Test Result (Male vs. Female Engagement Gain):", u_test_gender.pvalue)
 
-# Create a boxplot for engagement gain by gender
+# Create a boxplot to compare engagement gain by gender
 plt.figure(figsize=(10, 6))
-sns.boxplot(x=engagement_with_attributes["gender"], y=engagement_with_attributes["engagement_gain"])
+sns.boxplot(x=engagement_with_attributes["gender"], y=engagement_with_attributes["engagement_gain"], palette="Set2")
 plt.xlabel("Gender")
 plt.ylabel("Engagement Gain")
-plt.title("Comparison of Engagement Gains by Gender")
-plt.xticks(rotation=45)
+plt.title("Engagement Gain by Gender")
+plt.xticks(fontsize=12)
 plt.show()
 
 # Plot boxplot to compare engagement gain by user type
 plt.figure(figsize=(10, 5))
-sns.boxplot(data=engagement_with_attributes, x="user_type", y="engagement_gain")
+sns.boxplot(data=engagement_with_attributes, x="user_type", y="engagement_gain", palette="coolwarm")
 plt.title("Engagement Gain by User Type")
 plt.xlabel("User Type")
 plt.ylabel("Engagement Gain")
-plt.xticks(rotation=45)
+plt.xticks(fontsize=12)
+sns.violinplot(x="user_type", y="engagement_gain", data=engagement_with_attributes)
 plt.show()
