@@ -5,6 +5,7 @@
 
 # Importing necessary libraries
 import pandas as pd
+import numpy as np
 import scipy.stats as stats
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -28,16 +29,14 @@ print(merged_data.head())
 def plot_histogram(control, treatment, label1="Control Group", label2="Treatment Group"):
     plt.figure(figsize=(12, 5))
     plt.subplot(1, 2, 1)
-    sns.histplot(control, bins=30, kde=False, color="blue", alpha=0.6)
+    sns.histplot(control, bins=30, kde=True, color="blue", alpha=0.6)
     plt.title(f"Histogram of Active Minutes ({label1})")
     plt.xlabel("Active Minutes")
-    plt.xlim(0, 6000)
     
     plt.subplot(1, 2, 2)
-    sns.histplot(treatment, bins=30, kde=False, color="blue", alpha=0.6)
+    sns.histplot(treatment, bins=30, kde=True, color="red", alpha=0.6)
     plt.title(f"Histogram of Active Minutes ({label2})")
     plt.xlabel("Active Minutes")
-    plt.xlim(0, 6000)
     
     plt.show()
 
@@ -98,14 +97,22 @@ def plot_boxplot(control, treatment, label1="Control Group", label2="Treatment G
     plt.show()
 
 # Remove outliers from the data
-def remove_outliers(data, threshold=1440):
-    return data[data["active_mins"] <= threshold]
+def remove_outliers_iqr(df, column):
+    """Removes outliers using the IQR method."""
+    Q1 = np.percentile(df[column], 25)
+    Q3 = np.percentile(df[column], 75)
+    IQR = Q3 - Q1
+
+    lower_bound = Q1 - 1.5 * IQR
+    upper_bound = Q3 + 1.5 * IQR
+
+    return df[(df[column] >= lower_bound) & (df[column] <= upper_bound)]
 
 # Plot Boxplot of Control and Treatment groups
 plot_boxplot(control_group, treatment_group)
 
 # Remove outliers above 1,440 minutes
-merged_clean = remove_outliers(merged_data)
+merged_clean = remove_outliers_iqr(merged_data, "active_mins")
 
 # Display how many outliers were removed
 print(f"\nOutliers removed: {len(merged_data) - len(merged_clean)}")
@@ -143,11 +150,11 @@ t3 = pd.read_csv("Data/t3_user_active_min_pre.csv")
 # Merge t3(pre-expeiment data) and t2 datasets
 pre_merged = t3.merge(t2[['uid', 'variant_number']], on='uid', how='inner')
 
-print("\Pre-Experiment Data:\n")
+print("\nPre-Experiment Data:\n")
 print(pre_merged.head())
 
 # Remove outliers from pre-experiment data
-pre_merged_clean = remove_outliers(pre_merged)
+pre_merged_clean = remove_outliers_iqr(pre_merged, "active_mins")
 
 print(f"\nOutliers removed: {len(pre_merged) - len(pre_merged_clean)}")
 print("Max Active Minutes After Outlier Removal:", merged_clean["active_mins"].max())
@@ -236,7 +243,7 @@ print("\nMann-Whitney U-Test Result (Male vs. Female Engagement Gain):", u_test_
 
 # Create a boxplot to compare engagement gain by gender
 plt.figure(figsize=(10, 6))
-sns.boxplot(x=engagement_with_attributes["gender"], y=engagement_with_attributes["engagement_gain"], palette="Set2")
+sns.boxplot(x=engagement_with_attributes["gender"], y=engagement_with_attributes["engagement_gain"], palette="Set2", hue=None)
 plt.xlabel("Gender")
 plt.ylabel("Engagement Gain")
 plt.title("Engagement Gain by Gender")
@@ -245,10 +252,9 @@ plt.show()
 
 # Plot boxplot to compare engagement gain by user type
 plt.figure(figsize=(10, 5))
-sns.boxplot(data=engagement_with_attributes, x="user_type", y="engagement_gain", palette="coolwarm")
+sns.boxplot(data=engagement_with_attributes, x="user_type", y="engagement_gain", palette="coolwarm", hue=None)
 plt.title("Engagement Gain by User Type")
 plt.xlabel("User Type")
 plt.ylabel("Engagement Gain")
 plt.xticks(fontsize=12)
-sns.violinplot(x="user_type", y="engagement_gain", data=engagement_with_attributes)
 plt.show()
